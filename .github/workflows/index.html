@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Компоненты бойца</title>
+<style>
+:root{--bg:#f2f4f8;--card:#ffffff;--text:#1c2030;--muted:#697083;--accent:#4f6ef7;--accent-soft:#e8edff;--border:#e1e4ec;--seg:#dde2ee}
+body.dark{--bg:#12141a;--card:#1b1f29;--text:#e7e9f0;--muted:#98a0b3;--accent:#7c8cff;--accent-soft:#262c44;--border:#2a2f3d;--seg:#2a2f3d}
+*{box-sizing:border-box}
+body{margin:0;font-family:"Segoe UI",Arial,sans-serif;background:var(--bg);color:var(--text)}
+.wrap{max-width:1080px;margin:0 auto;padding:14px}
+header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+h1{font-size:20px;margin:0}
+.theme-btn{border:1px solid var(--border);background:var(--card);color:var(--text);border-radius:8px;padding:6px 12px;cursor:pointer;font-size:14px}
+.panel{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px;margin-bottom:14px}
+.panel h2{margin:0 0 8px;font-size:15px}
+.qrow{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+select,input[type=number]{background:var(--card);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:6px 8px;font-size:14px}
+input[type=number]{width:110px}
+button{border:none;border-radius:8px;padding:7px 14px;cursor:pointer;font-size:14px;background:var(--accent);color:#fff}
+button.ghost{background:var(--accent-soft);color:var(--accent);border:1px solid var(--border)}
+button.mini{padding:3px 9px;font-size:12px;background:var(--accent-soft);color:var(--accent);border:1px solid var(--border)}
+.qlist{margin-top:8px;display:flex;flex-direction:column;gap:4px}
+.qitem{display:flex;justify-content:space-between;align-items:center;gap:8px;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:5px 10px;font-size:13px}
+.muted{color:var(--muted)}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media(max-width:760px){.cols{grid-template-columns:1fr}}
+.col{display:flex;flex-direction:column;gap:12px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px;display:flex;flex-direction:column}
+.card-head{display:flex;align-items:center;gap:8px}
+.card-head .icon{width:26px;height:26px;color:var(--accent);flex:none;display:block}
+.card-head .icon svg{width:100%;height:100%;display:block}
+.card-head .name{font-weight:600;font-size:15px}
+.badge{margin-left:auto;font-size:12px;background:var(--accent-soft);color:var(--accent);border-radius:10px;padding:2px 9px;white-space:nowrap}
+.bar-zone{height:26px;display:flex;align-items:center;margin:10px 0 4px}
+.bar{width:100%;height:14px;background:var(--seg);border-radius:7px;display:flex;overflow:hidden}
+.bar .fill{background:var(--accent);height:100%}
+.bar .seg{flex:1;border-right:2px solid var(--card)}
+.bar .seg.on{background:var(--accent)}
+.bar .seg:last-child{border-right:none}
+.info-zone{min-height:46px;font-size:12.5px;line-height:1.5;color:var(--muted)}
+.fc-zone{min-height:20px;font-size:12.5px;color:var(--muted);margin-bottom:8px}
+.add-row{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.add-row select{width:104px}
+.add-row input{width:96px}
+.reset-row{margin-top:8px;text-align:right}
+.hidden{display:none}
+.chance-note{font-size:12px;color:var(--muted);margin-top:10px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Компоненты бойца</h1>
+    <button class="theme-btn" id="themeBtn">🌙 Тёмная</button>
+  </header>
+
+  <div class="panel">
+    <h2>Сундуки Компонентов бойца</h2>
+    <div class="qrow">
+      <label>Уровень сундуков
+        <select id="qLvl"></select>
+      </label>
+      <input id="qQty" type="number" min="1" placeholder="Количество">
+      <button id="qAdd">Добавить</button>
+      <button id="openAll" class="ghost">Открыть всё</button>
+      <button id="qClear" class="ghost">Очистить очередь</button>
+      <button id="resetAll" class="ghost">Сбросить всё</button>
+    </div>
+    <div class="qlist" id="qList"></div>
+    <div class="muted" id="qTotal" style="margin-top:6px"></div>
+    <div class="muted" id="batchInfo"></div>
+    <div class="chance-note">Шансы фиксированные: Навигатор 22,2% · Двигатель 22,2% · Композитная броня 22,3% · ИК-детектор 11,1% · Батареи 11,1% · Ракета 11,1%. Сундук уровня K выдаёт деталь уровня K. Деталь ур. K = 3^(K−1) деталей 1-го уровня.</div>
+  </div>
+
+  <div class="cols">
+    <div class="col" id="colLeft"></div>
+    <div class="col" id="colRight"></div>
+  </div>
+</div>
+
+<script>
+"use strict";
+var ITEMS = [
+  {id:'nav', name:'Навигатор', chance:22.2, side:'left',
+    icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M15.5 8.5l-2.2 5-5 2.2 2.2-5z" fill="currentColor" stroke="none"/></svg>'},
+  {id:'eng', name:'Двигатель', chance:22.2, side:'left',
+    icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M7 9h7l3 3v5H7z"/><path d="M4 12h3M9 5v4M13 5v4M17 12h3v3h-3M9 5h4"/></svg>'},
+  {id:'armor', name:'Композитная броня', chance:22.3, side:'left',
+    icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l7 3v5c0 5-3.5 8-7 9-3.5-1-7-4-7-9V6z"/><path d="M9 12l2 2 4-4"/></svg>'},
+  {id:'ir', name:'Инфракрасный детектор', chance:11.1, side:'right',
+    icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 12s4-6 10-6 10 6 10 6-4 6-10 6-10-6-10-6z"/><circle cx="12" cy="12" r="3"/></svg>'},
+  {id:'bat', name:'Набор батарей', chance:11.1, side:'right',
+    icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="10" width="13" height="7" rx="1.5"/><path d="M15 12h3v3h-3M5 12v3M8 12v3"/></svg>'},
+  {id:'roc', name:'Тактическая ракета', chance:11.1, side:'right',
+    icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3c3 2 4 6 4 9l-4 3-4-3c0-3 1-7 4-9z"/><circle cx="12" cy="10" r="1.6"/><path d="M8 15l-2 4M16 15l2 4M12 16v4"/></svg>'}
+];
+
+var L8 = 2187; // деталей 1 ур. для уровня 8
+
+function eq(L){ return Math.pow(3, L-1); }
+
+function normalize(t){
+  if (!t || t <= 0) return {level:0, count:0, storage:0};
+  if (t < L8){
+    var L = Math.floor(Math.log(t)/Math.log(3)) + 1;
+    if (L > 7) L = 7;
+    if (L < 1) L = 1;
+    var count = Math.floor(t / eq(L));
+    if (count > 2) count = 2;
+    return {level:L, count:count, storage:t - eq(L)*count};
+  }
+  var L2 = 8, storage = t - L8;
+  while (L2 < 12 && storage >= 2*eq(L2)){ storage -= 2*eq(L2); L2++; }
+  return {level:L2, count:1, storage:storage};
+}
+
+function fmt(n){ return Math.round(n).toLocaleString('ru-RU'); }
+function fmtChests(c){
+  if (!isFinite(c) || c <= 0) return '0';
+  c = Math.ceil(c);
+  if (c >= 1e6) return '≈ ' + (c/1e6).toFixed(1).replace('.', ',') + ' млн';
+  return fmt(c);
+}
+
+function rollItem(){
+  var r = Math.random()*100, acc = 0;
+  for (var i = 0; i < ITEMS.length; i++){
+    acc += ITEMS[i].chance;
+    if (r < acc) return ITEMS[i].id;
+  }
+  return ITEMS[ITEMS.length-1].id;
+}
+
+var state = {t:{}, queue:[], dark:false, chestLvl:1, batch:null};
+ITEMS.forEach(function(it){ state.t[it.id] = 0; });
+
+try {
+  var saved = localStorage.getItem('sunduki_state');
+  if (saved){
+    var s = JSON.parse(saved);
+    ITEMS.forEach(function(it){
+      if (typeof s.t === 'object' && s.t && typeof s.t[it.id] === 'number') state.t[it.id] = s.t[it.id];
+    });
+    if (Array.isArray(s.queue)) state.queue = s.queue;
+    state.dark = !!s.dark;
+    state.chestLvl = s.chestLvl || 1;
+    state.batch = s.batch || null;
+  }
+} catch(e){ /* пустое состояние */ }
+
+function save(){
+  try { localStorage.setItem('sunduki_state', JSON.stringify(state)); } catch(e){}
+}
+
+/* ---------- сундуки ---------- */
+var qLvl = document.getElementById('qLvl');
+var qQty = document.getElementById('qQty');
+var qList = document.getElementById('qList');
+var qTotal = document.getElementById('qTotal');
+var batchInfo = document.getElementById('batchInfo');
+
+for (var i = 1; i <= 7; i++){
+  var o = document.createElement('option');
+  o.value = i; o.textContent = 'Ур. ' + i;
+  qLvl.appendChild(o);
+}
+qLvl.value = state.chestLvl;
+qLvl.addEventListener('change', function(){ state.chestLvl = +qLvl.value; save(); renderCards(); });
+
+function renderQueue(){
+  qList.innerHTML = '';
+  var total = 0;
+  state.queue.forEach(function(q, idx){
+    total += q.qty;
+    var row = document.createElement('div');
+    row.className = 'qitem';
+    var span = document.createElement('span');
+    span.textContent = 'Сундуки ур. ' + q.lvl + ' — ' + fmt(q.qty) + ' шт.';
+    var btn = document.createElement('button');
+    btn.className = 'mini'; btn.textContent = 'Убрать';
+    btn.addEventListener('click', function(){
+      state.queue.splice(idx, 1); save(); renderQueue();
+    });
+    row.appendChild(span); row.appendChild(btn);
+    qList.appendChild(row);
+  });
+  qTotal.textContent = total ? ('В очереди: ' + fmt(total) + ' сундуков') : 'Очередь пуста — добавь партии кнопкой «Добавить», затем жми «Открыть всё».';
+}
+
+document.getElementById('qAdd').addEventListener('click', function(){
+  var qty = Math.floor(+qQty.value || 0);
+  if (qty < 1){ qQty.focus(); return; }
+  if (qty > 1000000){ qty = 1000000; }
+  state.queue.push({lvl:+qLvl.value, qty:qty});
+  qQty.value = '';
+  save(); renderQueue();
+});
+
+document.getElementById('qClear').addEventListener('click', function(){
+  state.queue = []; save(); renderQueue();
+});
+
+function renderBatch(){
+  if (!state.batch || !state.batch.total){ batchInfo.textContent = ''; return; }
+  var parts = [];
+  ITEMS.forEach(function(it){
+    var n = state.batch.items[it.id] || 0;
+    if (n) parts.push(it.name + ' ×' + fmt(n));
+  });
+  batchInfo.textContent = 'Последняя партия: ' + fmt(state.batch.total) + ' сундуков (ур. ' + state.batch.lvls.join(', ур. ') + '). Выпало: ' + parts.join(', ');
+}
+
+document.getElementById('openAll').addEventListener('click', function(){
+  if (!state.queue.length){
+    var qty = Math.floor(+qQty.value || 0);
+    if (qty < 1){ qQty.focus(); return; }
+    state.queue.push({lvl:+qLvl.value, qty:qty});
+  }
+  var total = 0;
+  state.queue.forEach(function(q){ total += q.qty; });
+  if (total > 500000){ alert('Максимум 500 000 сундуков за раз — разбей на партии.'); return; }
+  var batch = {total:total, lvls:[], items:{}};
+  state.queue.forEach(function(q){
+    for (var i = 0; i < q.qty; i++){
+      var id = rollItem();
+      state.t[id] += eq(q.lvl);
+      batch.items[id] = (batch.items[id] || 0) + 1;
+    }
+    batch.lvls.push(q.lvl);
+  });
+  state.queue = [];
+  state.batch = batch;
+  save(); renderQueue(); renderCards(); renderBatch();
+});
+
+document.getElementById('resetAll').addEventListener('click', function(){
+  if (!confirm('Сбросить все детали, уровни и очередь?')) return;
+  ITEMS.forEach(function(it){ state.t[it.id] = 0; });
+  state.queue = []; state.batch = null;
+  save(); renderQueue(); renderCards(); renderBatch();
+});
+
+/* ---------- карточки ---------- */
+function buildCards(){
+  var colL = document.getElementById('colLeft');
+  var colR = document.getElementById('colRight');
+  colL.innerHTML = ''; colR.innerHTML = '';
+  ITEMS.forEach(function(it){
+    var card = document.createElement('div');
+    card.className = 'card';
+
+    var head = document.createElement('div');
+    head.className = 'card-head';
+    var ic = document.createElement('span');
+    ic.className = 'icon'; ic.innerHTML = it.icon;
+    var nm = document.createElement('span');
+    nm.className = 'name'; nm.textContent = it.name;
+    var badge = document.createElement('span');
+    badge.className = 'badge'; badge.id = 'badge_' + it.id;
+    head.appendChild(ic); head.appendChild(nm); head.appendChild(badge);
+
+    var bz = document.createElement('div');
+    bz.className = 'bar-zone';
+    var bar = document.createElement('div');
+    bar.className = 'bar'; bar.id = 'bar_' + it.id;
+    for (var s = 0; s < 3; s++){
+      var seg = document.createElement('div');
+      seg.className = 'seg';
+      bar.appendChild(seg);
+    }
+    bz.appendChild(bar);
+
+    var info = document.createElement('div');
+    info.className = 'info-zone'; info.id = 'info_' + it.id;
+    var fc = document.createElement('div');
+    fc.className = 'fc-zone'; fc.id = 'fc_' + it.id;
+
+    var row = document.createElement('div');
+    row.className = 'add-row';
+    var sel = document.createElement('select');
+    for (var L = 1; L <= 12; L++){
+      var op = document.createElement('option');
+      op.value = L; op.textContent = 'Уровень ' + L;
+      sel.appendChild(op);
+    }
+    sel.value = 1;
+    var qty = document.createElement('input');
+    qty.type = 'number'; qty.min = 1; qty.value = 1; qty.placeholder = 'Кол-во';
+    var sto = document.createElement('input');
+    sto.type = 'number'; sto.min = 0; sto.placeholder = 'В хранилище';
+    sto.className = 'hidden';
+    var add = document.createElement('button');
+    add.textContent = 'Добавить';
+    row.appendChild(sel); row.appendChild(qty); row.appendChild(sto); row.appendChild(add);
+
+    var rr = document.createElement('div');
+    rr.className = 'reset-row';
+    var rst = document.createElement('button');
+    rst.className = 'mini'; rst.textContent = 'Сброс';
+    rr.appendChild(rst);
+
+    card.appendChild(head); card.appendChild(bz); card.appendChild(info);
+    card.appendChild(fc); card.appendChild(row); card.appendChild(rr);
+    (it.side === 'left' ? colL : colR).appendChild(card);
+
+    sel.addEventListener('change', function(){
+      var v = +sel.value;
+      qty.classList.toggle('hidden', v >= 8);
+      sto.classList.toggle('hidden', v < 8);
+    });
+    add.addEventListener('click', function(){
+      var v = +sel.value;
+      if (v >= 8){
+        var sv = Math.max(0, Math.floor(+sto.value || 0));
+        state.t[it.id] += eq(v) + sv;
+      } else {
+        var qv = Math.max(1, Math.floor(+qty.value || 1));
+        state.t[it.id] += qv * eq(v);
+      }
+      save(); renderCards();
+    });
+    rst.addEventListener('click', function(){
+      state.t[it.id] = 0; save(); renderCards();
+    });
+  });
+}
+
+function forecast(t){
+  var n = normalize(t);
+  var cl = state.chestLvl || 1;
+  var need;
+  if (n.level === 0) need = 1;
+  else if (n.level >= 12) return null;
+  else if (n.level <= 7){
+    var c = Math.floor(t / eq(n.level)) % 3;
+    need = (3 - c) * eq(n.level);
+  } else {
+    need = 2*eq(n.level) - n.storage;
+  }
+  if (need <= 0) need = 0;
+  return {need:need, level:(n.level === 0 ? 1 : n.level + 1)};
+}
+
+function renderCards(){
+  ITEMS.forEach(function(it){
+    var t = state.t[it.id] || 0;
+    var n = normalize(t);
+    var badge = document.getElementById('badge_' + it.id);
+    var bar = document.getElementById('bar_' + it.id);
+    var info = document.getElementById('info_' + it.id);
+    var fc = document.getElementById('fc_' + it.id);
+    if (!bar || !badge || !info || !fc) return;
+
+    badge.textContent = n.level ? 'Ур. ' + n.level : '—';
+
+    if (n.level >= 8){
+      bar.querySelectorAll('.seg').forEach(function(seg){ seg.classList.remove('on'); seg.style.background = ''; });
+      var fill = bar.querySelector('.fill');
+      if (!fill){
+        fill = document.createElement('div');
+        fill.className = 'fill';
+        bar.appendChild(fill);
+      }
+      var pct = n.level >= 12 ? 100 : (n.storage / (2*eq(n.level)))*100;
+      fill.style.width = Math.min(100, Math.max(0, pct)) + '%';
+    } else {
+      var f = bar.querySelector('.fill');
+      if (f) f.remove();
+      var c = n.level ? Math.floor(t / eq(n.level)) % 3 : 0;
+      bar.querySelectorAll('.seg').forEach(function(seg, idx){
+        seg.classList.toggle('on', idx < c);
+      });
+    }
+
+    if (n.level === 0){
+      info.textContent = 'Деталей пока нет. Добавь имеющиеся или открой сундуки.';
+    } else if (n.level <= 7){
+      var stock = t - eq(n.level);
+      info.textContent = 'Установлена деталь ур. ' + n.level + '. Запас сверх установленной: ' + fmt(stock) + ' дет. 1 ур.';
+    } else if (n.level < 12){
+      var need = 2*eq(n.level);
+      info.textContent = 'Хранилище: ' + fmt(n.storage) + ' / ' + fmt(need) + ' дет. 1 ур. (' + Math.min(100, Math.round(n.storage/need*100)) + '%)';
+    } else {
+      info.textContent = 'Максимальный уровень (12). Резерв в хранилище: ' + fmt(n.storage) + ' дет. 1 ур.';
+    }
+
+    var f2 = forecast(t);
+    if (!f2){
+      fc.textContent = 'Максимум — уровень 12.';
+    } else {
+      var chIt = f2.need / (eq(state.chestLvl) * it.chance/100);
+      fc.textContent = 'До ур. ' + f2.level + ': ' + fmt(f2.need) + ' дет. 1 ур. ≈ ' + fmtChests(chIt) + ' сунд. ур. ' + state.chestLvl;
+    }
+  });
+}
+
+/* ---------- тема ---------- */
+var themeBtn = document.getElementById('themeBtn');
+function applyTheme(){
+  document.body.classList.toggle('dark', state.dark);
+  themeBtn.textContent = state.dark ? '☀️ Светлая' : '🌙 Тёмная';
+}
+themeBtn.addEventListener('click', function(){
+  state.dark = !state.dark; save(); applyTheme();
+});
+
+buildCards();
+applyTheme();
+renderQueue();
+renderBatch();
+renderCards();
+</script>
+</body>
+</html>
