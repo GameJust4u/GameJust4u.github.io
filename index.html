@@ -412,5 +412,64 @@ renderQueue();
 renderBatch();
 renderCards();
 </script>
+  <div class="panel" id="lolkaPanel" style="text-align:center">
+  <button id="lolkaSend">Отправить итоги в Lolka</button>
+  <div style="margin-top:6px">
+    <input id="lolkaNick" type="text" maxlength="32" placeholder="Твой ник" style="width:180px;padding:6px 10px;border-radius:8px;border:1px solid #8888;background:transparent;color:inherit">
+  </div>
+  <div class="muted" id="lolkaStatus" style="margin-top:6px"></div>
+</div>
+<script>
+(function(){
+  "use strict";
+  var WEBHOOK = "https://lolka.app/api/webhooks/970790235949056/OTcwNzkwMjM1OTQ5MDU2.ycvwhHYNFCjNqda-NcjT6q4NJseRronyA2J5R90djMc";
+
+  var nickInput = document.getElementById('lolkaNick');
+  nickInput.value = localStorage.getItem('lolkaNick') || '';
+
+  function setStatus(t){
+    document.getElementById('lolkaStatus').textContent = t;
+  }
+
+  function collect(){
+    var lines = [];
+    document.querySelectorAll('.card').forEach(function(card){
+      var name = card.querySelector('.name');
+      var badge = card.querySelector('.badge');
+      var info = card.querySelector('.info-zone');
+      if (name && badge){
+        var line = name.textContent + ' — ' + badge.textContent;
+        if (info && info.textContent.trim()) line += ' (' + info.textContent.trim() + ')';
+        lines.push(line);
+      }
+    });
+    return lines.join('\n');
+  }
+
+  function send(payload){
+    fetch(WEBHOOK, { method:'POST', headers:{'Content-Type':'application/json'}, body: payload })
+      .then(function(r){
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        setStatus('Отправлено ✔');
+      })
+      .catch(function(){
+        fetch(WEBHOOK, { method:'POST', mode:'no-cors', headers:{'Content-Type':'text/plain'}, body: payload })
+          .then(function(){ setStatus('Отправлено (без подтверждения)'); })
+          .catch(function(){ setStatus('Ошибка сети'); });
+      });
+  }
+
+  document.getElementById('lolkaSend').addEventListener('click', function(){
+    var nick = nickInput.value.trim() || 'Игрок';
+    localStorage.setItem('lolkaNick', nick);
+    setStatus('Отправляю…');
+    var payload = JSON.stringify({
+      username: nick,
+      embeds: [{ title: 'Итоги трекера от ' + nick, description: collect() || 'Нет данных', color: 0x4f6ef7 }]
+    });
+    send(payload);
+  });
+})();
+</script>
 </body>
 </html>
